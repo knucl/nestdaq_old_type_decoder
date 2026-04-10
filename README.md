@@ -1,0 +1,1 @@
+このリポジトリの機能はそのうちnestdaq-monitor-decoderが代わりになるはずです。
