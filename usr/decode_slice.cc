@@ -6,7 +6,7 @@
 #include "TString.h"
 #include "TTree.h"
 
-#include "AmQStrTdcData.h"
+#include "AmQStrTdcData_RM.h"
 #include "FileSinkHeader.h"
 #include "FileSinkTrailer.h"
 #include "FilterHeader.h"
@@ -298,16 +298,16 @@ int main(int argc, char* argv[]) {
         } else if (amq_flag == kAmQHeartbeat2nd) {
         } else if (amq_flag == kAmQThrottlingT1Start) {
           cout << "Throttling T1 start" << endl;
-          cout << "IP: " << int{ip[3]} << endl;
+          cout << "IP: " << int{tmp_ip3} << endl;
         } else if (amq_flag == kAmQThrottlingT1End) {
           cout << "Throttling T1 end"   << endl;
-          cout << "IP: " << int{ip[3]} << endl;
+          cout << "IP: " << int{tmp_ip3} << endl;
         } else if (amq_flag == kAmQThrottlingT2Start) {
           cout << "Throttling T2 start" << endl;
-          cout << "IP: " << int{ip[3]} << endl;
+          cout << "IP: " << int{tmp_ip3} << endl;
         } else if (amq_flag == kAmQThrottlingT2End) {
           cout << "Throttling T2 end"   << endl;
-          cout << "IP: " << int{ip[3]} << endl;
+          cout << "IP: " << int{tmp_ip3} << endl;
         } else if (amq_flag == -1) {
           cerr << "Invalid header: " << hex << h_amq.head << endl;
           return -1;

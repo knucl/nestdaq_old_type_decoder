@@ -25,25 +25,25 @@ link_libraries(
 )
 
 add_executable(decode       usr/decode.cc)
-add_executable(decode_tmp   usr/decode_tmp.cc)
+#add_executable(decode_tmp   usr/decode_tmp.cc)
 add_executable(decode_slice usr/decode_slice.cc)
-add_executable(calc_rate    usr/calc_rate.cc)
+#add_executable(calc_rate    usr/calc_rate.cc)
 
-add_executable(decode_honda
-  usr/decode_honda.cc
-  src/NodeUnpacker.cc
-  src/LeafProcessor.cc
-  src/NodeHeaderDecoder.cc
-  src/LeafDecoder.cc
-)
-target_include_directories(decode_honda PRIVATE
-  ${CMAKE_CURRENT_SOURCE_DIR}/include
-  ${CMAKE_CURRENT_SOURCE_DIR}/src
-)
-target_link_libraries(decode_honda PRIVATE
-  ${ROOT_LIBRARIES}
-)
-
-add_executable(check_module_sync   usr/260302/check_module_sync.cc)
-add_executable(check_time_interval usr/260303/check_time_interval.cc)
-add_executable(check_filter_timing usr/260406/check_filter_timing.cc)
+#add_executable(decode_honda
+#  usr/decode_honda.cc
+#  src/NodeUnpacker.cc
+#  src/LeafProcessor.cc
+#  src/NodeHeaderDecoder.cc
+#  src/LeafDecoder.cc
+#)
+#target_include_directories(decode_honda PRIVATE
+#  ${CMAKE_CURRENT_SOURCE_DIR}/include
+#  ${CMAKE_CURRENT_SOURCE_DIR}/src
+#)
+#target_link_libraries(decode_honda PRIVATE
+#  ${ROOT_LIBRARIES}
+#)
+#
+#add_executable(check_module_sync   usr/260302/check_module_sync.cc)
+#add_executable(check_time_interval usr/260303/check_time_interval.cc)
+#add_executable(check_filter_timing usr/260406/check_filter_timing.cc)
