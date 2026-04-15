@@ -135,7 +135,6 @@ int main(int argc, char* argv[]) {
   vector<uint8_t> ip(4);
 //  uint32_t frame_number = 0;
   uint32_t laccp_offset = 0;
-  uint32_t hbd_flags = 0;
   uint64_t tdc;
   uint64_t tot;
   uint64_t ch;
@@ -147,7 +146,6 @@ int main(int argc, char* argv[]) {
   out_tree.Branch("fem_type",         &fem_type,         "fem_type/i");
 //  out_tree.Branch("frame_number", &frame_number, "frame_number/i");
   out_tree.Branch("laccp_offset",     &laccp_offset,     "laccp_offset/i");
-  out_tree.Branch("hbd_flags",        &hbd_flags,        "hbd_flags/i");
   out_tree.Branch("ip_addr",          &ip_addr,          "ip_addr/i");
   out_tree.Branch("ip",               &ip);
   out_tree.Branch("tdc",              &tdc,              "tdc/l");
@@ -164,12 +162,14 @@ int main(int argc, char* argv[]) {
   out_tree1.Branch("n_triggers", &n_triggers, "n_triggers/I");
   out_tree1.Branch("trg_time",   &trg_time);
   
-  auto out_tree2 = TTree("tree2", "tree2");
+  auto out_tree2 = TTree("tree2", "tree2"); // heart beat delimiter
+  uint64_t hbd_flag;
   uint64_t trans_size;
   uint64_t gen_size;
   out_tree2.Branch("tf_id",      &tf_id,      "tf_id/i");
   out_tree2.Branch("hbf_id",     &hbf_id,     "hbf_id/i");
   out_tree2.Branch("ip",         &ip);
+  out_tree2.Branch("hbd_flag",   &hbd_flag,   "hbd_flag/l");
   out_tree2.Branch("trans_size", &trans_size, "trans_size/l");
   out_tree2.Branch("gen_size",   &gen_size,   "gen_size/l");
 
@@ -320,7 +320,7 @@ int main(int argc, char* argv[]) {
           }
           out_tree.Fill();
         } else if (amq_flag == kAmQHeartbeat) {
-          hbd_flags    = h_amq.hbflag;
+          hbd_flag     = h_amq.hbflag;
           laccp_offset = h_amq.toffset;
 //          frame_number = h_amq.hbframe;
         } else if (amq_flag == kAmQHeartbeat2nd) {
