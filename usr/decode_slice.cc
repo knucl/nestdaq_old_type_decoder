@@ -193,8 +193,13 @@ int main(int argc, char* argv[]) {
 		  tm tm = *localtime(&h_fsh.startUnixtime);
       cout << "Start: " << put_time(&tm, "%Y-%m-%d %H:%M:%S %Z") << endl;
     } else if (flag == kTimeFrame) {
+      if (!is_first) {
+        if (trg_time.size() != 0) {
+          out_tree.Fill();
+        }
+      }
+      is_first = false;
     	ReadExact(&ifs, reinterpret_cast<char*>(&h_tf) + sizeof(uint64_t), sizeof(TimeFrame::v1::Header) - sizeof(uint64_t));
-      tf_id_from_tf  = h_tf.timeFrameId;
 //      tf_id          = h_tf.timeFrameId;
       have_tf_header = true;
 //      n_hbf          = 0;
@@ -222,12 +227,6 @@ int main(int argc, char* argv[]) {
 //     << ((ip_addr >>  8) & 0xFF) << '.'
 //     << ((ip_addr >>  0) & 0xFF) << endl;
     } else if (flag == kFilter) {
-      if (!is_first) {
-        if (trg_time.size() != 0) {
-          out_tree.Fill();
-        }
-      }
-      is_first = false;
       ReadExact(&ifs, reinterpret_cast<char*>(&h_flt) + sizeof(uint64_t), sizeof(Filter::Header) - sizeof(uint64_t));
       flt_type    = h_flt.type;
 //           tf_id       = h_flt.timeFrameId;
@@ -267,9 +266,6 @@ int main(int argc, char* argv[]) {
 //      hbf_id = n_hbf;
 //      ++n_hbf;
       auto length = h_hbf.length / 8 - kDataSize[kHeartbeatFrame];
-      int tmp_hb_flags     = 0;
-      int tmp_laccp_offset = 0;
-      int tmp_frame_number = 0;
       for (int i = 0; i < length; ++i) {
         read_u64_le(ifs, buf);
         memcpy(&h_amq, &buf, 8);
@@ -288,13 +284,14 @@ int main(int argc, char* argv[]) {
           }
           ip2.push_back(tmp_ip2);
           ip3.push_back(tmp_ip3);
-          hb_flags.push_back(tmp_hb_flags);
-          laccp_offset.push_back(tmp_laccp_offset);
-          frame_number.push_back(tmp_frame_number);
         } else if (amq_flag == kAmQHeartbeat) {
-          tmp_hb_flags     = h_amq.hbflag;
-          tmp_laccp_offset = h_amq.toffset;
-          tmp_frame_number = h_amq.hbframe;
+          auto n_hits = tdc.size();
+          auto tmp_hb_flags     = h_amq.hbflag;
+          auto tmp_laccp_offset = h_amq.toffset;
+          auto tmp_frame_number = h_amq.hbframe;
+          hb_flags.assign(n_hits, tmp_hb_flags);
+          laccp_offset.assign(n_hits, tmp_laccp_offset);
+          frame_number.assign(n_hits, tmp_frame_number);
         } else if (amq_flag == kAmQHeartbeat2nd) {
         } else if (amq_flag == kAmQThrottlingT1Start) {
           cout << "Throttling T1 start" << endl;

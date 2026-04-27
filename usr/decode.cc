@@ -291,7 +291,6 @@ int main(int argc, char* argv[]) {
 //      data_type.clear();
     } else if (flag == kHeartbeatFrame) {
       ReadExact(&ifs, reinterpret_cast<char*>(&h_hbf) + sizeof(uint64_t), sizeof(HeartbeatFrame::Header) - sizeof(uint64_t));
-      
       hbf_id = n_hbf;
       ++n_hbf;
 //cerr << h_hbf.length << endl;
