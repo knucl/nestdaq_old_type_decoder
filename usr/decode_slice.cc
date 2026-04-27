@@ -164,7 +164,6 @@ int main(int argc, char* argv[]) {
   
   uint64_t buf;
 //  int n_hbf = 0;
-  bool have_tf_header = false;
   uint32_t tf_id_from_tf = 0;
   FileSinkHeader::v1::Header   h_fsh{};
   TimeFrame::v1::Header        h_tf{};
@@ -193,24 +192,10 @@ int main(int argc, char* argv[]) {
 		  tm tm = *localtime(&h_fsh.startUnixtime);
       cout << "Start: " << put_time(&tm, "%Y-%m-%d %H:%M:%S %Z") << endl;
     } else if (flag == kTimeFrame) {
-      if (!is_first) {
-        if (trg_time.size() != 0) {
-          out_tree.Fill();
-        }
-      }
-      is_first = false;
     	ReadExact(&ifs, reinterpret_cast<char*>(&h_tf) + sizeof(uint64_t), sizeof(TimeFrame::v1::Header) - sizeof(uint64_t));
-//      tf_id          = h_tf.timeFrameId;
-      have_tf_header = true;
-//      n_hbf          = 0;
-//      hbf_id         = 0;
 //h_tf.Print();
 		} else if (flag == kSubTimeFrame) {
     	ReadExact(&ifs, reinterpret_cast<char*>(&h_stf) + sizeof(uint64_t), sizeof(SubTimeFrame::v1::Header) - sizeof(uint64_t));
-      if (have_tf_header && tf_id_from_tf != h_stf.timeFrameId) {
-        cerr << "TimeFrame ID mismatch: TF=" << tf_id_from_tf << " STF=" << h_stf.timeFrameId << endl;
-      }
-//      tf_id    = h_stf.timeFrameId;
       fem_type.push_back(h_stf.femType);
       ip_addr.push_back(h_stf.femId);
 //      ip[0] = (ip_addr >> 24) & 0xFF;
@@ -227,6 +212,12 @@ int main(int argc, char* argv[]) {
 //     << ((ip_addr >>  8) & 0xFF) << '.'
 //     << ((ip_addr >>  0) & 0xFF) << endl;
     } else if (flag == kFilter) {
+      if (!is_first) {
+        if (trg_time.size() != 0) {
+          out_tree.Fill();
+        }
+      }
+      is_first = false;
       ReadExact(&ifs, reinterpret_cast<char*>(&h_flt) + sizeof(uint64_t), sizeof(Filter::Header) - sizeof(uint64_t));
       flt_type    = h_flt.type;
 //           tf_id       = h_flt.timeFrameId;
