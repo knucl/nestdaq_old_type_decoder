@@ -24,10 +24,11 @@ link_libraries(
   ${ROOT_LIBRARIES}
 )
 
-add_executable(decode       usr/decode.cc)
-#add_executable(decode_tmp   usr/decode_tmp.cc)
-add_executable(decode_slice usr/decode_slice.cc)
-#add_executable(calc_rate    usr/calc_rate.cc)
+add_executable(decode        usr/decode.cc)
+#add_executable(decode_tmp    usr/decode_tmp.cc)
+add_executable(decode_slice  usr/decode_slice.cc)
+add_executable(decode_slice2 usr/decode_slice2.cc)
+#add_executable(calc_rate     usr/calc_rate.cc)
 
 #add_executable(decode_honda
 #  usr/decode_honda.cc

@@ -134,9 +134,12 @@ int main(int argc, char* argv[]) {
   vector<uint32_t> ip_addr;
   vector<uint8_t>  ip2;
   vector<uint8_t>  ip3;
-  vector<uint32_t> frame_number;
-  vector<uint32_t> laccp_offset;
-  vector<uint32_t> hb_flags;
+//  vector<uint32_t> frame_number;
+//  vector<uint32_t> laccp_offset;
+//  vector<uint32_t> hb_flags;
+  uint32_t frame_number;
+  uint32_t laccp_offset;
+  uint32_t hb_flags;
   vector<uint64_t> tdc;
   vector<uint64_t> tot;
   vector<uint64_t> ch;
@@ -151,9 +154,12 @@ int main(int argc, char* argv[]) {
   out_tree.Branch("trg_time",     &trg_time);
 //  out_tree.Branch("trg_type",     &trg_type);
   out_tree.Branch("fem_type",     &fem_type);
-  out_tree.Branch("frame_number", &frame_number);
-  out_tree.Branch("laccp_offset", &laccp_offset);
-  out_tree.Branch("hb_flags",     &hb_flags);
+//  out_tree.Branch("frame_number", &frame_number);
+//  out_tree.Branch("laccp_offset", &laccp_offset);
+//  out_tree.Branch("hb_flags",     &hb_flags);
+  out_tree.Branch("frame_number", &frame_number, "frame_number/i");
+  out_tree.Branch("laccp_offset", &laccp_offset, "laccp_offset/i");
+  out_tree.Branch("hb_flags",     &hb_flags,     "hb_flags/i");
   out_tree.Branch("ip_addr",      &ip_addr);
   out_tree.Branch("ip2",          &ip2);
   out_tree.Branch("ip3",          &ip3);
@@ -245,9 +251,9 @@ int main(int argc, char* argv[]) {
       ip_addr.clear();
       ip2.clear();
       ip3.clear();
-      frame_number.clear();
-      laccp_offset.clear();
-      hb_flags.clear();
+//      frame_number.clear();
+//      laccp_offset.clear();
+//      hb_flags.clear();
       tdc.clear();
       tot.clear();
       ch.clear();
@@ -276,13 +282,16 @@ int main(int argc, char* argv[]) {
           ip2.push_back(tmp_ip2);
           ip3.push_back(tmp_ip3);
         } else if (amq_flag == kAmQHeartbeat) {
-          auto n_hits = tdc.size();
-          auto tmp_hb_flags     = h_amq.hbflag;
-          auto tmp_laccp_offset = h_amq.toffset;
-          auto tmp_frame_number = h_amq.hbframe;
-          hb_flags.assign(n_hits, tmp_hb_flags);
-          laccp_offset.assign(n_hits, tmp_laccp_offset);
-          frame_number.assign(n_hits, tmp_frame_number);
+//          auto n_hits = tdc.size();
+//          auto tmp_hb_flags     = h_amq.hbflag;
+//          auto tmp_laccp_offset = h_amq.toffset;
+//          auto tmp_frame_number = h_amq.hbframe;
+//          hb_flags.assign(n_hits, tmp_hb_flags);
+//          laccp_offset.assign(n_hits, tmp_laccp_offset);
+//          frame_number.assign(n_hits, tmp_frame_number);
+          hb_flags     = h_amq.hbflag;
+          laccp_offset = h_amq.toffset;
+          frame_number = h_amq.hbframe;
         } else if (amq_flag == kAmQHeartbeat2nd) {
         } else if (amq_flag == kAmQThrottlingT1Start) {
           cout << "Throttling T1 start" << endl;
