@@ -50,6 +50,8 @@ constexpr uint64_t kMagicWords[kNumHeaderType] = {FileSinkHeader::v1::MAGIC,
 																									FileSinkTrailer::v1::MAGIC};
 constexpr int kDataSize[kNumHeaderType] = {38, 3, 6, 7, 2, 38};
 
+int pastFrameNumber = -1;
+
 bool read_u64_le(istream& is, uint64_t& out) {
   unsigned char b[8];
   if (!is.read(reinterpret_cast<char*>(b), 8)) return false;
@@ -105,8 +107,9 @@ int CheckAMANEQHeader(AmQStrTdc::Data::v1::Bits bits) {
 
 int ReadMeta(int n_fe, ifstream* ifs) {
   uint64_t buf;
-  SubTimeFrame::v1::Header h_stf{};
-  HeartbeatFrame::Header   h_hbf{};
+  SubTimeFrame::v1::Header  h_stf{};
+  HeartbeatFrame::Header    h_hbf{};
+	AmQStrTdc::Data::v1::Bits h_amq{};
   for (int i = 0; i < n_fe; ++i) {
     // SUBTIME
     read_u64_le(*ifs, buf);
@@ -127,6 +130,17 @@ int ReadMeta(int n_fe, ifstream* ifs) {
     auto length = h_hbf.length / 8 - kDataSize[kHeartbeatFrame];
     for (int k = 0; k < length; ++k) {
       read_u64_le(*ifs, buf);
+      memcpy(&h_amq, &buf, 8);
+      auto amq_flag = CheckAMANEQHeader(h_amq);
+      if (amq_flag == kAmQHeartbeat) {
+        auto frame_number = h_amq.hbframe;
+        if (pastFrameNumber != -1 &&
+            frame_number != pastFrameNumber &&
+            frame_number != pastFrameNumber + 1) {
+          cerr << Form("Invalid frame number: %d (expect: %d or +1)", frame_number, pastFrameNumber) << endl;
+        }
+        pastFrameNumber = frame_number;
+      }
     }
   }
   return 0;
