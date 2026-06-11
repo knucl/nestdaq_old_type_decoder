@@ -115,7 +115,7 @@ int ReadMeta(int n_fe, ifstream* ifs) {
     read_u64_le(*ifs, buf);
 	  auto flag = CheckHeader(buf);
     if (flag != kSubTimeFrame) {
-      cerr << "Unexpected flag: " << flag << endl;
+      cerr << Form("Unexpected flag (ReadMeta): %d != %d", flag, kSubTimeFrame) << endl;
       return -1;
     }
     ReadExact(ifs, reinterpret_cast<char*>(&h_stf) + sizeof(uint64_t), sizeof(SubTimeFrame::v1::Header) - sizeof(uint64_t));
@@ -123,7 +123,7 @@ int ReadMeta(int n_fe, ifstream* ifs) {
     read_u64_le(*ifs, buf);
 	  flag = CheckHeader(buf);
     if (flag != kHeartbeatFrame) {
-      cerr << "Unexpected flag: " << flag << endl;
+      cerr << Form("Unexpected flag (ReadMeta): %d != %d", flag, kHeartbeatFrame) << endl;
       return -1;
     }
     ReadExact(ifs, reinterpret_cast<char*>(&h_hbf) + sizeof(uint64_t), sizeof(HeartbeatFrame::Header) - sizeof(uint64_t));
@@ -250,7 +250,7 @@ int main(int argc, char* argv[]) {
       read_u64_le(ifs, buf);
 		  flag = CheckHeader(buf);
       if (flag != kFilter) {
-        cerr << "Unexpected flag: " << flag << endl;
+        cerr << Form("Unexpected flag: %d != %d, position: %d", flag, kFilter, ifs.tellg()) << endl;
         return -1;
       }
       ReadExact(&ifs, reinterpret_cast<char*>(&h_flt) + sizeof(uint64_t), sizeof(Filter::Header) - sizeof(uint64_t));
@@ -291,7 +291,7 @@ int main(int argc, char* argv[]) {
         read_u64_le(ifs, buf);
 		    flag = CheckHeader(buf);
         if (flag != kTimeFrame) {
-          cerr << "Unexpected flag: " << flag << endl;
+          cerr << Form("Unexpected flag: %d != %d", flag, kTimeFrame) << endl;
           return -1;
         }
     	  ReadExact(&ifs, reinterpret_cast<char*>(&h_tf) + sizeof(uint64_t), sizeof(TimeFrame::v1::Header) - sizeof(uint64_t));
@@ -301,7 +301,7 @@ int main(int argc, char* argv[]) {
           read_u64_le(ifs, buf);
 		      flag = CheckHeader(buf);
           if (flag != kSubTimeFrame) {
-            cerr << "Unexpected flag: " << flag << endl;
+            cerr << Form("Unexpected flag: %d != %d", flag, kSubTimeFrame) << endl;
             return -1;
           }
     	    ReadExact(&ifs, reinterpret_cast<char*>(&h_stf) + sizeof(uint64_t), sizeof(SubTimeFrame::v1::Header) - sizeof(uint64_t));
@@ -313,7 +313,7 @@ int main(int argc, char* argv[]) {
           read_u64_le(ifs, buf);
 		      flag = CheckHeader(buf);
           if (flag != kHeartbeatFrame) {
-            cerr << "Unexpected flag: " << flag << endl;
+            cerr << Form("Unexpected flag: %d != %d", flag, kHeartbeatFrame) << endl;
             return -1;
           }
           ReadExact(&ifs, reinterpret_cast<char*>(&h_hbf) + sizeof(uint64_t), sizeof(HeartbeatFrame::Header) - sizeof(uint64_t));
