@@ -1,6 +1,7 @@
 #include <fstream>
 #include <iomanip>
 #include <iostream>
+#include <unordered_map>
 
 #include "TFile.h"
 #include "TString.h"
@@ -50,7 +51,65 @@ constexpr uint64_t kMagicWords[kNumHeaderType] = {FileSinkHeader::v1::MAGIC,
 																									FileSinkTrailer::v1::MAGIC};
 constexpr int kDataSize[kNumHeaderType] = {38, 3, 6, 7, 2, 38};
 
-int pastFrameNumber = -1;
+constexpr uint32_t kHbFrameMask = 0x00ffffff;
+constexpr uint32_t kHbFrameHalfRange = 0x00800000;
+
+unordered_map<uint32_t, uint32_t> pastFrameNumberByFem;
+
+void CheckFrameNumber(uint32_t femId, uint32_t frameNumber) {
+  frameNumber &= kHbFrameMask;
+
+  auto [it, inserted] = pastFrameNumberByFem.try_emplace(femId, frameNumber);
+  if (inserted) return;
+
+  const auto previous = it->second;
+  const auto delta = (frameNumber - previous) & kHbFrameMask;
+
+  // The same HBF can appear more than once in META data.  A delta of one is
+  // the normal transition and also handles 0xffffff -> 0 correctly.
+  if (delta > 1 && delta < kHbFrameHalfRange) {
+    cerr << Form(
+        "Frame gap: FEM=%08x previous=%u current=%u delta=%u",
+        femId, previous, frameNumber, delta)
+        << endl;
+  } else if (delta >= kHbFrameHalfRange) {
+    cerr << Form(
+        "Out-of-order frame: FEM=%08x previous=%u current=%u delta=%u",
+        femId, previous, frameNumber, delta)
+        << endl;
+  }
+
+  it->second = frameNumber;
+}
+
+void PrintThrottlingEvent(
+    int eventType,
+    uint32_t femId,
+    uint32_t timeFrameId,
+    const char* section,
+    int wordIndex) {
+  const char* eventName = nullptr;
+  switch (eventType) {
+    case kAmQThrottlingT1Start: eventName = "T1 start"; break;
+    case kAmQThrottlingT1End:   eventName = "T1 end";   break;
+    case kAmQThrottlingT2Start: eventName = "T2 start"; break;
+    case kAmQThrottlingT2End:   eventName = "T2 end";   break;
+    default: return;
+  }
+
+  cout << Form(
+      "Throttling %s: section=%s FEM=%08x IP=%u.%u.%u.%u TF=%u word=%d",
+      eventName,
+      section,
+      femId,
+      (femId >> 24) & 0xff,
+      (femId >> 16) & 0xff,
+      (femId >> 8) & 0xff,
+      femId & 0xff,
+      timeFrameId,
+      wordIndex)
+      << endl;
+}
 
 bool read_u64_le(istream& is, uint64_t& out) {
   unsigned char b[8];
@@ -132,14 +191,16 @@ int ReadMeta(int n_fe, ifstream* ifs) {
       read_u64_le(*ifs, buf);
       memcpy(&h_amq, &buf, 8);
       auto amq_flag = CheckAMANEQHeader(h_amq);
-      if (amq_flag == kAmQHeartbeat) {
-        auto frame_number = h_amq.hbframe;
-        if (pastFrameNumber != -1 &&
-            frame_number != pastFrameNumber &&
-            frame_number != pastFrameNumber + 1) {
-          cerr << Form("Invalid frame number: %d (expect: %d or +1)", frame_number, pastFrameNumber) << endl;
-        }
-        pastFrameNumber = frame_number;
+      PrintThrottlingEvent(
+          amq_flag, h_stf.femId, h_stf.timeFrameId, "META", k);
+      // A throttled STF can contain additional heartbeat words in its META
+      // payload.  Only the first word of the final heartbeat delimiter pair
+      // represents the HBF being summarized here; do not mix embedded frames
+      // into the continuity check.
+      const bool isFinalHeartbeat =
+          amq_flag == kAmQHeartbeat && k + 2 == length;
+      if (isFinalHeartbeat) {
+        CheckFrameNumber(h_stf.femId, h_amq.hbframe);
       }
     }
   }
@@ -342,18 +403,12 @@ int main(int argc, char* argv[]) {
               laccp_offset = h_amq.toffset;
               frame_number = h_amq.hbframe;
             } else if (amq_flag == kAmQHeartbeat2nd) {
-            } else if (amq_flag == kAmQThrottlingT1Start) {
-              cout << "Throttling T1 start" << endl;
-              cout << "IP: " << int{tmp_ip3} << endl;
-            } else if (amq_flag == kAmQThrottlingT1End) {
-              cout << "Throttling T1 end"   << endl;
-              cout << "IP: " << int{tmp_ip3} << endl;
-            } else if (amq_flag == kAmQThrottlingT2Start) {
-              cout << "Throttling T2 start" << endl;
-              cout << "IP: " << int{tmp_ip3} << endl;
-            } else if (amq_flag == kAmQThrottlingT2End) {
-              cout << "Throttling T2 end"   << endl;
-              cout << "IP: " << int{tmp_ip3} << endl;
+            } else if (amq_flag == kAmQThrottlingT1Start ||
+                       amq_flag == kAmQThrottlingT1End ||
+                       amq_flag == kAmQThrottlingT2Start ||
+                       amq_flag == kAmQThrottlingT2End) {
+              PrintThrottlingEvent(
+                  amq_flag, tmp_ip_addr, h_stf.timeFrameId, "SLICE", k);
             } else if (amq_flag == -1) {
               cerr << "Invalid header: " << hex << h_amq.head << endl;
               return -1;

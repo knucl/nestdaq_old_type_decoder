@@ -1,10 +1,11 @@
 #!/bin/bash
 
 BIN_NAME=$HOME/spadi/nestdaq_old_type_decoder/install/bin/decode_slice2
-DATA_PATH=/data/2606_jparc
+#DATA_PATH=/data/2606_jparc
+DATA_PATH=/data/test/2607_riken
 IN_PATH=$DATA_PATH/slice
-OUT_PATH=$DATA_PATH/decode
-
+#OUT_PATH=$DATA_PATH/decode
+OUT_PATH=/data/users/ohtaka
 if [ $# != 1 ]; then
   echo "./shell [run ID]"
   exit 1
