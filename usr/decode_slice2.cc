@@ -2,6 +2,9 @@
 #include <iomanip>
 #include <iostream>
 #include <unordered_map>
+#include <map>
+#include <iterator>
+#include <cstdint>
 
 #include "TFile.h"
 #include "TString.h"
@@ -54,32 +57,70 @@ constexpr int kDataSize[kNumHeaderType] = {38, 3, 6, 7, 2, 38};
 constexpr uint32_t kHbFrameMask = 0x00ffffff;
 constexpr uint32_t kHbFrameHalfRange = 0x00800000;
 
-unordered_map<uint32_t, uint32_t> pastFrameNumberByFem;
+// Track observed intervals until EOF instead of diagnosing adjacent arrivals.
+// Use signed, unwrapped positions: delayed frames may precede the first arrival.
+// Assumption: reordering/discontinuities are less than half the 24-bit cycle.
+struct FrameCoverage {
+  bool initialized = false;
+  int64_t highest = 0;
+  std::map<int64_t, int64_t> ranges;
+};
+unordered_map<uint32_t, FrameCoverage> frameCoverageByFem;
 
 void CheckFrameNumber(uint32_t femId, uint32_t frameNumber) {
   frameNumber &= kHbFrameMask;
-
-  auto [it, inserted] = pastFrameNumberByFem.try_emplace(femId, frameNumber);
-  if (inserted) return;
-
-  const auto previous = it->second;
-  const auto delta = (frameNumber - previous) & kHbFrameMask;
-
-  // The same HBF can appear more than once in META data.  A delta of one is
-  // the normal transition and also handles 0xffffff -> 0 correctly.
-  if (delta > 1 && delta < kHbFrameHalfRange) {
-    cerr << Form(
-        "Frame gap: FEM=%08x previous=%u current=%u delta=%u",
-        femId, previous, frameNumber, delta)
-        << endl;
-  } else if (delta >= kHbFrameHalfRange) {
-    cerr << Form(
-        "Out-of-order frame: FEM=%08x previous=%u current=%u delta=%u",
-        femId, previous, frameNumber, delta)
-        << endl;
+  auto& coverage = frameCoverageByFem[femId];
+  int64_t position = frameNumber;
+  if (coverage.initialized) {
+    const uint32_t delta =
+        (frameNumber - (static_cast<uint32_t>(coverage.highest) & kHbFrameMask))
+        & kHbFrameMask;
+    position = coverage.highest + (delta < kHbFrameHalfRange
+        ? static_cast<int64_t>(delta)
+        : static_cast<int64_t>(delta) - (int64_t{1} << 24));
+  } else {
+    coverage.initialized = true;
+    coverage.highest = position;
   }
+  if (position > coverage.highest) coverage.highest = position;
 
-  it->second = frameNumber;
+  auto& ranges = coverage.ranges;
+  auto next = ranges.upper_bound(position);
+  auto current = ranges.end();
+  if (next != ranges.begin()) {
+    auto previous = std::prev(next);
+    if (position <= previous->second) return; // duplicate META frame
+    if (position == previous->second + 1) {
+      previous->second = position;
+      current = previous;
+    }
+  }
+  if (current == ranges.end())
+    current = ranges.emplace(position, position).first;
+  if (next != ranges.end() && next->first == current->second + 1) {
+    current->second = next->second;
+    ranges.erase(next);
+  }
+}
+
+void ReportFrameGaps() {
+  // Only internal gaps in the observed input are knowable. Do not infer missing
+  // frames before the first or after the last observed frame for an FE.
+  for (const auto& entry : frameCoverageByFem) {
+    const auto& ranges = entry.second.ranges;
+    if (ranges.empty()) continue;
+    auto previous = ranges.begin();
+    for (auto current = std::next(previous); current != ranges.end(); ++current) {
+      const auto delta = current->first - previous->second;
+      cerr << Form(
+          "Frame gap (EOF coverage): FEM=%08x previous=%u current=%u",
+          entry.first,
+          static_cast<uint32_t>(previous->second) & kHbFrameMask,
+          static_cast<uint32_t>(current->first) & kHbFrameMask)
+          << " delta=" << delta << " missing=" << (delta - 1) << endl;
+      previous = current;
+    }
+  }
 }
 
 void PrintThrottlingEvent(
@@ -232,7 +273,7 @@ int main(int argc, char* argv[]) {
   uint64_t flt_usec;
   uint16_t tth_type;
   uint32_t trg_time;
-//  vector<uint32_t> trg_type;
+  vector<uint32_t> trg_type;
 // hit
   int n_hits;
   vector<uint32_t> fem_type;
@@ -257,7 +298,7 @@ int main(int argc, char* argv[]) {
   out_tree.Branch("flt_usec",     &flt_usec,    "flt_usec/l");
   out_tree.Branch("tth_type",     &tth_type,    "tth_type/s");
   out_tree.Branch("trg_time",     &trg_time,    "trg_time/i");
-//  out_tree.Branch("trg_type",     &trg_type);
+  out_tree.Branch("trg_type",     &trg_type);
   out_tree.Branch("fem_type",     &fem_type);
 //  out_tree.Branch("frame_number", &frame_number);
 //  out_tree.Branch("laccp_offset", &laccp_offset);
@@ -324,9 +365,9 @@ int main(int argc, char* argv[]) {
       flt_sec     = h_flt.timeSec;
       flt_usec    = h_flt.timeUSec;
       tmp_trg_time.clear();
-//      trg_type.clear();
+      trg_type.clear();
       tmp_trg_time.resize(n_triggers);
-//      trg_type.resize(n_triggers);
+      trg_type.resize(n_triggers);
 //cerr << Form("%d %d %d %d %d %d %d %d %d %d", h_flt.length, h_flt.hLength, h_flt.type, h_flt.timeFrameId, h_flt.numTrigs, h_flt.workerId, h_flt.numMessages, h_flt.elapseTime, h_flt.timeSec, h_flt.timeUSec) << endl;
       // TRGTIME
       ReadExact(&ifs, reinterpret_cast<char*>(&h_tth), sizeof(Filter::TrgTimeHeader));
@@ -336,8 +377,8 @@ int main(int argc, char* argv[]) {
         read_u64_le(ifs, buf);
         memcpy(&h_tt, &buf, 8);
         tmp_trg_time[i] = h_tt.time * 4;
-//        trg_type[i] = h_tt.type;
-      }
+        trg_type[i] = h_tt.type & 0x00ffffffu;
+			}
       ReadMeta(n_fe, &ifs);
       for (int i = 0; i < n_triggers; ++i) {
         fem_type.clear();
@@ -426,6 +467,7 @@ int main(int argc, char* argv[]) {
       cout << "Stop: " << put_time(&tm, "%Y-%m-%d %H:%M:%S %Z") << endl;
 		}
 	}
+  ReportFrameGaps();
   out_file.Write();
   return 0;
 }
